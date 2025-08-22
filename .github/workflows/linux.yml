@@ -34,7 +34,7 @@ jobs:
           sudo apt-get -qq update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             yad make gcc g++ ccache mesa-common-dev libglu1-mesa-dev \
-            libxxf86dga-dev libxxf86vm-dev libasound2-dev libx11-dev libxcb1-dev \
+            libxxf86dga-dev libxxf86vm-dev libasound2-dev libx11-dev libxcb1-dev libxext-dev \
             && sudo apt-get clean
 
       - name: Configure ccache (optional speedup)
