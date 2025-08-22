@@ -32,7 +32,7 @@ jobs:
       - name: Install required packages
         run: |
           sudo apt-get -qq update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             yad make gcc g++ ccache mesa-common-dev libglu1-mesa-dev \
             libxxf86dga-dev libxxf86vm-dev libasound2-dev libx11-dev libxcb1-dev \
             && sudo apt-get clean
