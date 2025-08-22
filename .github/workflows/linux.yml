@@ -1,63 +1,100 @@
 name: Linux
 env:
   VK_VERSION: 1.3.275.0
+
 on:
   workflow_dispatch:
   push:
     branches:
       - master
-
 jobs:
-  Linux:
-    runs-on: ubuntu-20.04
+  build:
+    name: Build (Linux)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup cache for ccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('**/Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
 
       - name: Install required packages
-        shell: bash
         run: |
           sudo apt-get -qq update
-          sudo apt-get install -y yad make gcc g++ mesa-common-dev libglu1-mesa-dev libxxf86dga-dev libxxf86vm-dev libasound2-dev libx11-dev libxcb1-dev
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            yad make gcc g++ ccache mesa-common-dev libglu1-mesa-dev \
+            libxxf86dga-dev libxxf86vm-dev libasound2-dev libx11-dev libxcb1-dev \
+            && sudo apt-get clean
+
+      - name: Configure ccache (optional speedup)
+        run: |
+          export CCACHE_DIR="${HOME}/.ccache"
+          ccache --max-size=1G
+          echo "Using ccache:"
+          ccache -s || true
+
       - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.1.1
+        uses: humbletim/install-vulkan-sdk@v1.2
         with:
-          version: $VK_VERSION
+          version: ${{ env.VK_VERSION }}
           cache: true
-      - name: Build vkQuake2 Debug
-        shell: bash
+
+      - name: Build vkQuake2 - Debug
         run: |
           cd linux
           make clean debug
           cd ..
-      - name: Upload vkQuake2 Debug artifacts
-        uses: actions/upload-artifact@v3
+
+      - name: Pack Debug artifact (exclude .o files)
+        run: |
+          mkdir -p artifacts
+          # create archive excluding object files to avoid uploading many small files
+          tar --exclude='*.o' -C linux -czf artifacts/vkQuake2-Ubuntu-debug-x64.tar.gz debugx64
+
+      - name: Upload vkQuake2 Debug artifact
+        uses: actions/upload-artifact@v4
         with:
           name: vkQuake2-Ubuntu-debug-x64
-          path: |
-            linux/debugx64
-            !linux/debugx64/**/*.o
-      - name: Build vkQuake2 Release
-        shell: bash
+          path: artifacts/vkQuake2-Ubuntu-debug-x64.tar.gz
+
+      - name: Build vkQuake2 - Release
         run: |
           cd linux
           make clean release
           cd ..
-      - name: Upload vkQuake2 Release artifacts
-        uses: actions/upload-artifact@v3
+
+      - name: Pack Release artifact (exclude .o files)
+        run: |
+          mkdir -p artifacts
+          tar --exclude='*.o' -C linux -czf artifacts/vkQuake2-Ubuntu-release-x64.tar.gz releasex64
+
+      - name: Upload vkQuake2 Release artifact
+        uses: actions/upload-artifact@v4
         with:
           name: vkQuake2-Ubuntu-release-x64
-          path: |
-            linux/releasex64
-            !linux/releasex64/**/*.o
+          path: artifacts/vkQuake2-Ubuntu-release-x64.tar.gz
 
-      - name: Build vkQuake2 appImage
-        shell: bash
+      - name: Build vkQuake2 AppImage
         run: |
-           linux/appimage/appimage.sh
-      - name: Upload vkQuake2 AppImage artifacts
-        uses: actions/upload-artifact@v3
+          chmod +x linux/appimage/appimage.sh || true
+          linux/appimage/appimage.sh
+
+      - name: Upload vkQuake2 AppImage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: vkQuake2-AppImage
           path: |
             vkQuake.AppImage
+
